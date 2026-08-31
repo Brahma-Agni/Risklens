@@ -1,0 +1,327 @@
+name: ${COMPOSE_PROJECT_NAME:-risklens}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: risklens-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-risklens}
+      POSTGRES_USER: ${POSTGRES_USER:-risklens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-risklens_dev_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - risklens
+
+  neo4j:
+    image: neo4j:5.26-community
+    container_name: risklens-neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-risklens_dev_password}
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+      NEO4J_server_default__listen__address: 0.0.0.0
+    ports:
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget --quiet --tries=1 --spider http://localhost:7474 || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - risklens
+
+  neo4j-init:
+    image: neo4j:5.26-community
+    container_name: risklens-neo4j-init
+    restart: "no"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    environment:
+      NEO4J_USER: ${NEO4J_USER:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-risklens_dev_password}
+    volumes:
+      - ./database/neo4j/init:/init:ro
+    entrypoint:
+      - /bin/bash
+      - -ec
+    command:
+      - >-
+        cypher-shell -a neo4j://neo4j:7687
+        -u "$${NEO4J_USER}" -p "$${NEO4J_PASSWORD}"
+        -f /init/constraints.cypher
+    networks:
+      - risklens
+
+  qdrant:
+    image: qdrant/qdrant:v1.15.4
+    container_name: risklens-qdrant
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_HTTP_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - bash -c ':> /dev/tcp/127.0.0.1/6333'
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - risklens
+
+  qdrant-init:
+    image: curlimages/curl:8.15.0
+    container_name: risklens-qdrant-init
+    restart: "no"
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_VECTOR_SIZE: ${QDRANT_VECTOR_SIZE:-384}
+    volumes:
+      - ./database/qdrant/init:/init:ro
+    entrypoint:
+      - /bin/sh
+      - /init/init-collections.sh
+    networks:
+      - risklens
+
+  ai-risk-verifier:
+    build:
+      context: ./ai-risk-verifier
+      dockerfile: Dockerfile
+    image: risklens/ai-risk-verifier:local
+    container_name: risklens-ai-risk-verifier
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      qdrant-init:
+        condition: service_completed_successfully
+    environment:
+      VERIFIER_DATABASE_URL: ${VERIFIER_DATABASE_URL:-postgresql://risklens:risklens_dev_password@postgres:5432/risklens}
+      VERIFIER_QDRANT_URL: ${VERIFIER_QDRANT_URL:-http://qdrant:6333}
+      VERIFIER_QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      VERIFIER_API_KEY: ${VERIFIER_API_KEY:-}
+      VERIFIER_VECTOR_SIZE: ${QDRANT_VECTOR_SIZE:-384}
+      VERIFIER_SEED_DEFAULT_POLICIES: ${VERIFIER_SEED_DEFAULT_POLICIES:-true}
+      VERIFIER_RETRIEVAL_LIMIT: ${VERIFIER_RETRIEVAL_LIMIT:-5}
+      VERIFIER_RETRIEVAL_SCORE_THRESHOLD: ${VERIFIER_RETRIEVAL_SCORE_THRESHOLD:-0.08}
+      VERIFIER_REQUEST_TIMEOUT_SECONDS: ${VERIFIER_REQUEST_TIMEOUT_SECONDS:-3}
+    ports:
+      - "${VERIFIER_PORT:-8090}:8090"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://localhost:8090/health/live', timeout=2)
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    networks:
+      - risklens
+
+  data-generator:
+    build:
+      context: ./data-generator
+      dockerfile: Dockerfile
+    image: risklens/data-generator:local
+    profiles:
+      - tools
+    user: "${DATA_GENERATOR_UID:-1000}:${DATA_GENERATOR_GID:-1000}"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      DATA_GENERATOR_BACKEND_URL: ${DATA_GENERATOR_BACKEND_URL:-http://backend:8080}
+      DATA_GENERATOR_COUNT: ${DATA_GENERATOR_COUNT:-1000}
+      DATA_GENERATOR_ABUSE_RATE: ${DATA_GENERATOR_ABUSE_RATE:-0.15}
+      DATA_GENERATOR_SEED: ${DATA_GENERATOR_SEED:-42}
+      DATA_GENERATOR_RATE: ${DATA_GENERATOR_RATE:-20}
+      DATA_GENERATOR_CONCURRENCY: ${DATA_GENERATOR_CONCURRENCY:-10}
+      DATA_GENERATOR_RETRIES: ${DATA_GENERATOR_RETRIES:-2}
+      DATA_GENERATOR_TIMEOUT: ${DATA_GENERATOR_TIMEOUT:-10}
+      DATA_GENERATOR_OUTPUT: /app/output
+      DATA_GENERATOR_RESULTS: /app/output/stream-results.jsonl
+    volumes:
+      - ./data-generator/output:/app/output
+    networks:
+      - risklens
+
+  evaluation:
+    build:
+      context: ./evaluation
+      dockerfile: Dockerfile
+    image: risklens/evaluation:local
+    profiles:
+      - tools
+    user: "${EVALUATION_UID:-1000}:${EVALUATION_GID:-1000}"
+    environment:
+      EVALUATION_LABELS: /data/labels.jsonl
+      EVALUATION_RESULTS: /data/stream-results.jsonl
+      EVALUATION_OUTPUT_JSON: /reports/latest.json
+      EVALUATION_OUTPUT_MARKDOWN: /reports/latest.md
+      EVALUATION_POSITIVE_DECISIONS: ${EVALUATION_POSITIVE_DECISIONS:-REVIEW,HOLD,DECLINED}
+      EVALUATION_SCORE_THRESHOLD: ${EVALUATION_SCORE_THRESHOLD:-}
+      EVALUATION_MIN_PRECISION: ${EVALUATION_MIN_PRECISION:-0}
+      EVALUATION_MIN_RECALL: ${EVALUATION_MIN_RECALL:-0}
+    volumes:
+      - ./data-generator/output:/data:ro
+      - ./evaluation/reports:/reports
+      - ./shared:/contracts:ro
+    networks:
+      - risklens
+
+  risk-service:
+    build:
+      context: ./risk-service
+      dockerfile: Dockerfile
+    image: risklens/risk-service:local
+    container_name: risklens-risk-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      qdrant-init:
+        condition: service_completed_successfully
+      ai-risk-verifier:
+        condition: service_healthy
+    environment:
+      RISK_DATABASE_URL: ${RISK_DATABASE_URL:-postgresql://risklens:risklens_dev_password@postgres:5432/risklens}
+      RISK_NEO4J_URI: ${RISK_NEO4J_URI:-bolt://neo4j:7687}
+      RISK_NEO4J_USER: ${NEO4J_USER:-neo4j}
+      RISK_NEO4J_PASSWORD: ${NEO4J_PASSWORD:-risklens_dev_password}
+      RISK_QDRANT_URL: ${RISK_QDRANT_URL:-http://qdrant:6333}
+      RISK_QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      RISK_VERIFIER_URL: ${RISK_VERIFIER_URL:-http://ai-risk-verifier:8090}
+      RISK_VERIFIER_API_KEY: ${VERIFIER_API_KEY:-}
+      RISK_REQUIRE_VERIFIER: ${RISK_REQUIRE_VERIFIER:-true}
+      RISK_VECTOR_SIZE: ${QDRANT_VECTOR_SIZE:-384}
+      RISK_HISTORY_LIMIT: ${RISK_HISTORY_LIMIT:-500}
+      RISK_REQUEST_TIMEOUT_SECONDS: ${RISK_REQUEST_TIMEOUT_SECONDS:-1.5}
+      RISK_REVIEW_THRESHOLD: ${RISK_REVIEW_THRESHOLD:-0.60}
+      RISK_HOLD_THRESHOLD: ${RISK_HOLD_THRESHOLD:-0.82}
+      RISK_DECLINE_THRESHOLD: ${RISK_DECLINE_THRESHOLD:-0.95}
+      RISK_SIMILARITY_THRESHOLD: ${RISK_SIMILARITY_THRESHOLD:-0.15}
+    ports:
+      - "${RISK_SERVICE_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://localhost:8000/health/live', timeout=2)
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - risklens
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: risklens/backend:local
+    container_name: risklens-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      risk-service:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-jdbc:postgresql://postgres:5432/risklens}
+      DATABASE_USER: ${DATABASE_USER:-risklens}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-risklens_dev_password}
+      RISK_SERVICE_URL: ${RISK_SERVICE_URL:-http://risk-service:8000}
+      RISK_REVIEW_THRESHOLD: ${BACKEND_REVIEW_THRESHOLD:-0.70}
+      RISK_SERVICE_CONNECT_TIMEOUT: ${RISK_SERVICE_CONNECT_TIMEOUT:-2s}
+      RISK_SERVICE_READ_TIMEOUT: ${RISK_SERVICE_READ_TIMEOUT:-5s}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget --quiet --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - risklens
+
+  frontend-dashboard:
+    build:
+      context: ./frontend-dashboard
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+        NEXT_PUBLIC_ANALYST_ID: ${NEXT_PUBLIC_ANALYST_ID:-customer-support}
+        NEXT_PUBLIC_HIGH_RISK_THRESHOLD: ${NEXT_PUBLIC_HIGH_RISK_THRESHOLD:-0.60}
+        NEXT_PUBLIC_REFRESH_INTERVAL_MS: ${NEXT_PUBLIC_REFRESH_INTERVAL_MS:-10000}
+    image: risklens/frontend-dashboard:local
+    container_name: risklens-frontend-dashboard
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      NEXT_PUBLIC_ANALYST_ID: ${NEXT_PUBLIC_ANALYST_ID:-customer-support}
+      NEXT_PUBLIC_HIGH_RISK_THRESHOLD: ${NEXT_PUBLIC_HIGH_RISK_THRESHOLD:-0.60}
+      NEXT_PUBLIC_REFRESH_INTERVAL_MS: ${NEXT_PUBLIC_REFRESH_INTERVAL_MS:-10000}
+    networks:
+      - risklens
+
+volumes:
+  postgres_data:
+  neo4j_data:
+  neo4j_logs:
+  qdrant_data:
+
+networks:
+  risklens:
+    name: risklens-network

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://risklens.local/schemas/risk-evaluation.schema.json",
+  "title": "Risk evaluation response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "transactionRisk",
+    "accountRisk",
+    "behaviorRisk",
+    "temporalRisk",
+    "structuralRisk",
+    "similarityRisk",
+    "ringRisk",
+    "confidence",
+    "decision",
+    "recommendation",
+    "summary",
+    "signals"
+  ],
+  "properties": {
+    "transactionRisk": {"$ref": "#/$defs/score"},
+    "accountRisk": {"$ref": "#/$defs/score"},
+    "behaviorRisk": {"$ref": "#/$defs/score"},
+    "temporalRisk": {"$ref": "#/$defs/score"},
+    "structuralRisk": {"$ref": "#/$defs/score"},
+    "similarityRisk": {"$ref": "#/$defs/score"},
+    "ringRisk": {"$ref": "#/$defs/score"},
+    "confidence": {"$ref": "#/$defs/score"},
+    "decision": {"enum": ["ALLOW", "REVIEW", "HOLD", "DECLINED"]},
+    "recommendation": {"type": "string", "minLength": 1, "maxLength": 64},
+    "summary": {"type": "string", "minLength": 1},
+    "signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "source", "score", "description", "evidence"],
+        "properties": {
+          "type": {"type": "string", "minLength": 1, "maxLength": 64},
+          "source": {"type": "string", "minLength": 1, "maxLength": 32},
+          "score": {"$ref": "#/$defs/score"},
+          "description": {"type": "string", "minLength": 1},
+          "evidence": {"type": "object"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "score": {"type": "number", "minimum": 0, "maximum": 1}
+  }
+}

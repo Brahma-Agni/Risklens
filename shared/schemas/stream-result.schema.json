@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://risklens.local/schemas/stream-result.schema.json",
+  "title": "Data-generator stream result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["transaction_id", "outcome", "status_code", "attempts", "response", "error"],
+  "properties": {
+    "transaction_id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "outcome": {"enum": ["created", "duplicate", "rejected", "failed"]},
+    "status_code": {"type": ["integer", "null"]},
+    "attempts": {"type": "integer", "minimum": 1},
+    "response": {"type": ["object", "null"]},
+    "error": {"type": ["string", "null"]}
+  }
+}

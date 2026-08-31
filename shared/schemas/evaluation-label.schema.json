@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://risklens.local/schemas/evaluation-label.schema.json",
+  "title": "Evaluation ground-truth label",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["transaction_id", "is_abuse", "scenario", "expected_risk_band", "explanation"],
+  "properties": {
+    "transaction_id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "is_abuse": {"type": "boolean"},
+    "scenario": {"type": "string", "minLength": 1},
+    "expected_risk_band": {"type": "string", "minLength": 1},
+    "explanation": {"type": "string", "minLength": 1},
+    "ring_id": {"type": ["string", "null"]},
+    "related_entities": {"type": "array", "items": {"type": "string"}}
+  }
+}

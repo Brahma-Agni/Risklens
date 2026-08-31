@@ -1,0 +1,26 @@
+.env
+.idea/
+.vscode/
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Java
+target/
+*.class
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Generated data and reports
+data-generator/output/*
+!data-generator/output/.gitkeep
+evaluation/reports/*
+!evaluation/reports/.gitkeep
+
