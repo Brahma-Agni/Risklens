@@ -12,7 +12,7 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
-@EnableConfigurationProperties(RiskClientProperties.class)
+@EnableConfigurationProperties({RiskClientProperties.class, VerifierClientProperties.class})
 public class BackendConfig {
 
     @Bean
@@ -31,6 +31,23 @@ public class BackendConfig {
                 .baseUrl(properties.baseUrl())
                 .requestFactory(requestFactory)
                 .build();
+    }
+
+    @Bean
+    RestClient verifierRestClient(VerifierClientProperties properties) {
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(properties.connectTimeout())
+                .version(HttpClient.Version.HTTP_1_1)
+                .build();
+        var requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(properties.readTimeout());
+        RestClient.Builder builder = RestClient.builder()
+                .baseUrl(properties.baseUrl())
+                .requestFactory(requestFactory);
+        if (properties.apiKey() != null && !properties.apiKey().isBlank()) {
+            builder.defaultHeader("X-API-Key", properties.apiKey());
+        }
+        return builder.build();
     }
 
     @Bean

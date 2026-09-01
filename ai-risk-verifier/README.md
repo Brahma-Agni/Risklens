@@ -13,6 +13,11 @@ accepting or escalating the action.
 - Uses deterministic local hashing embeddings, so development and tests do not
   require an external model or API key.
 - Stores resolved case memory in PostgreSQL and Qdrant using idempotent IDs.
+- Seeds a versioned internal fraud-policy catalog with source metadata.
+- Backfills existing resolved analyst cases at startup and embeds labels,
+  dimensions, signals, evidence, summaries, and analyst notes.
+- Reconciles reviewed cases periodically using deterministic point IDs, so a
+  temporary verifier or Qdrant outage is repaired without duplicate memories.
 
 ## API
 
@@ -62,4 +67,7 @@ python -m risk_verifier.main
 
 The existing database initialization creates the required
 `fraud_case_memory`, `risk_case_memory`, and `risk_policies` stores. Default
+policies are internal RiskLens controls informed by RBI guidance; their source
+name, URL, publication date, and relevant section are stored in every Qdrant
+payload. They are not a claim of regulatory compliance or legal advice.
 governance policies are idempotently seeded when the service starts.

@@ -53,6 +53,12 @@ make stack-up
 make stack-check
 ```
 
+Use `make stack-up` rather than a single unscoped `docker compose up --wait`.
+Compose treats successfully completed one-shot jobs as stopped containers while
+waiting for long-running services. The Make target therefore starts healthy
+databases, runs both idempotent initialization jobs to completion, and only then
+starts and waits for the application services.
+
 Compose reads `.env` once as the configuration source for database credentials,
 internal service URLs, exposed ports, risk thresholds, generator settings,
 evaluation gates, CORS, and the dashboard's public API URL. Internal URLs use

@@ -18,6 +18,17 @@ TRANSACTION_FIELDS = (
     "ipAddress",
     "paymentMethod",
     "timestamp",
+    "ipId",
+    "paymentInstrumentId",
+    "locationCity",
+    "locationState",
+    "locationCountry",
+    "authorizationStatus",
+    "authenticationStatus",
+    "transactionStatus",
+    "failureReason",
+    "merchantCategory",
+    "context",
 )
 LABEL_FIELDS = (
     "transaction_id",
@@ -52,7 +63,10 @@ def export_dataset(dataset: Dataset, output_dir: Path, formats: set[str]) -> dic
         with transactions_csv.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=TRANSACTION_FIELDS)
             writer.writeheader()
-            writer.writerows(event.transaction.backend_payload() for event in dataset.events)
+            for event in dataset.events:
+                record = event.transaction.backend_payload()
+                record["context"] = json.dumps(record["context"])
+                writer.writerow(record)
         with labels_csv.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=LABEL_FIELDS)
             writer.writeheader()

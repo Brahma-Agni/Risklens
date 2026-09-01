@@ -10,6 +10,8 @@ class Account:
     home_ip_address: str
     payment_method: str
     typical_amount: float
+    home_city: str
+    home_state: str
 
 
 @dataclass(frozen=True)
@@ -30,6 +32,17 @@ class Transaction:
     ip_address: str
     payment_method: str
     timestamp: datetime
+    ip_id: str | None = None
+    payment_instrument_id: str | None = None
+    location_city: str | None = None
+    location_state: str | None = None
+    location_country: str | None = "IN"
+    authorization_status: str | None = "AUTHORIZED"
+    authentication_status: str | None = "SUCCESS"
+    transaction_status: str | None = "SUCCESS"
+    failure_reason: str | None = None
+    merchant_category: str | None = None
+    context: dict[str, Any] = field(default_factory=dict)
 
     def backend_payload(self) -> dict[str, Any]:
         return {
@@ -42,6 +55,18 @@ class Transaction:
             "ipAddress": self.ip_address,
             "paymentMethod": self.payment_method,
             "timestamp": self.timestamp.isoformat().replace("+00:00", "Z"),
+            "ipId": self.ip_id or f"IP-{self.ip_address.replace('.', '-')}",
+            "paymentInstrumentId": self.payment_instrument_id
+            or f"{self.payment_method}-{self.sender_id}",
+            "locationCity": self.location_city,
+            "locationState": self.location_state,
+            "locationCountry": self.location_country,
+            "authorizationStatus": self.authorization_status,
+            "authenticationStatus": self.authentication_status,
+            "transactionStatus": self.transaction_status,
+            "failureReason": self.failure_reason,
+            "merchantCategory": self.merchant_category,
+            "context": self.context,
         }
 
 

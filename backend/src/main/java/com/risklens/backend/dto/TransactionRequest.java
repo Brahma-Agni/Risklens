@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 
 public record TransactionRequest(
         @NotBlank @Size(max = 64) String transactionId,
@@ -22,7 +23,17 @@ public record TransactionRequest(
                 message = "must be an IPv4 or IPv6 address")
         String ipAddress,
         @NotBlank @Size(max = 32) String paymentMethod,
-        @NotNull Instant timestamp
+        @NotNull Instant timestamp,
+        @Size(max = 128) String ipId,
+        @Size(max = 128) String paymentInstrumentId,
+        @Size(max = 128) String locationCity,
+        @Size(max = 128) String locationState,
+        @Pattern(regexp = "[A-Z]{2}") String locationCountry,
+        @Size(max = 32) String authorizationStatus,
+        @Size(max = 32) String authenticationStatus,
+        @Size(max = 32) String transactionStatus,
+        @Size(max = 64) String failureReason,
+        @Size(max = 64) String merchantCategory,
+        @Size(max = 32) Map<String, Object> context
 ) {
 }
-

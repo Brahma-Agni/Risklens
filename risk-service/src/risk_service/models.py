@@ -32,6 +32,17 @@ class RiskRequest(ApiModel):
     ip_address: Annotated[str | None, StringConstraints(max_length=64)] = None
     payment_method: Identifier
     timestamp: datetime
+    ip_id: Annotated[str | None, StringConstraints(max_length=128)] = None
+    payment_instrument_id: Annotated[str | None, StringConstraints(max_length=128)] = None
+    location_city: Annotated[str | None, StringConstraints(max_length=128)] = None
+    location_state: Annotated[str | None, StringConstraints(max_length=128)] = None
+    location_country: Annotated[str | None, StringConstraints(pattern=r"^[A-Z]{2}$")] = None
+    authorization_status: Annotated[str | None, StringConstraints(max_length=32)] = None
+    authentication_status: Annotated[str | None, StringConstraints(max_length=32)] = None
+    transaction_status: Annotated[str | None, StringConstraints(max_length=32)] = None
+    failure_reason: Annotated[str | None, StringConstraints(max_length=64)] = None
+    merchant_category: Annotated[str | None, StringConstraints(max_length=64)] = None
+    context: dict[str, Any] = Field(default_factory=dict)
 
 
 class RiskSignal(ApiModel):
@@ -69,6 +80,13 @@ class HistoricalTransaction:
         payment_method: str,
         timestamp: datetime,
         status: str,
+        ip_id: str | None = None,
+        payment_instrument_id: str | None = None,
+        authorization_status: str | None = None,
+        authentication_status: str | None = None,
+        transaction_status: str | None = None,
+        failure_reason: str | None = None,
+        merchant_category: str | None = None,
     ) -> None:
         self.transaction_id = transaction_id
         self.amount = amount
@@ -78,6 +96,13 @@ class HistoricalTransaction:
         self.payment_method = payment_method
         self.timestamp = timestamp
         self.status = status
+        self.ip_id = ip_id
+        self.payment_instrument_id = payment_instrument_id
+        self.authorization_status = authorization_status
+        self.authentication_status = authentication_status
+        self.transaction_status = transaction_status
+        self.failure_reason = failure_reason
+        self.merchant_category = merchant_category
 
 
 class EngineResult(BaseModel):

@@ -46,8 +46,9 @@ class TrafficGenerator:
         start = self.config.start or datetime.now(timezone.utc).replace(microsecond=0)
         if start.tzinfo is None:
             start = start.replace(tzinfo=timezone.utc)
-        accounts = create_accounts(self.config.account_count, rng)
-        merchants = create_merchants(self.config.merchant_count, rng)
+        namespace = str(self.config.seed)
+        accounts = create_accounts(self.config.account_count, rng, namespace)
+        merchants = create_merchants(self.config.merchant_count, rng, namespace)
         ids = IdFactory(self.config.seed)
 
         abuse_target = round(self.config.count * self.config.abuse_rate)

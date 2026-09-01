@@ -24,6 +24,7 @@ import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +38,9 @@ public class RiskCaseService {
     private final RiskSignalRepository riskSignalRepository;
     private final AnalystDecisionRepository analystDecisionRepository;
     private final ObjectMapper objectMapper;
+
+    @Value("${risklens.review-threshold}")
+    private BigDecimal reviewThreshold;
 
     @Transactional
     public RiskCaseEntity createCase(
@@ -86,6 +90,18 @@ public class RiskCaseService {
             cases = riskCaseRepository.findAllByOrderByCreatedAtDesc(pageable);
         }
         return cases.stream().map(this::toSummary).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<RiskCaseSummaryResponse> listHighRiskLinked(int limit) {
+        return riskCaseRepository
+                .findByStatusInAndRingRiskGreaterThanEqualOrderByRingRiskDescCreatedAtDesc(
+                        List.of(RiskCaseStatus.OPEN, RiskCaseStatus.IN_REVIEW),
+                        reviewThreshold,
+                        PageRequest.of(0, limit))
+                .stream()
+                .map(this::toSummary)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -139,6 +155,13 @@ public class RiskCaseService {
     @Transactional(readOnly = true)
     public RiskCaseEntity findEntity(String caseId) {
         return riskCaseRepository.findByCaseId(caseId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Risk case not found: " + caseId));
+    }
+
+    @Transactional
+    public RiskCaseEntity findEntityForUpdate(String caseId) {
+        return riskCaseRepository.findByCaseIdForUpdate(caseId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Risk case not found: " + caseId));
     }

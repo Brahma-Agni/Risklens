@@ -102,6 +102,35 @@ class TransactionServiceTest {
     }
 
     @Test
+    void persistsTheStrongestRiskDimensionIncludingTemporalRisk() {
+        TransactionRequest request = request("TX-VELOCITY-RISK");
+        saveReturnsInput();
+        var evaluation = new RiskEvaluationResponse(
+                new BigDecimal("0.20"),
+                new BigDecimal("0.18"),
+                new BigDecimal("0.10"),
+                new BigDecimal("0.91"),
+                new BigDecimal("0.05"),
+                new BigDecimal("0.00"),
+                new BigDecimal("0.08"),
+                new BigDecimal("0.80"),
+                "HOLD",
+                "HOLD",
+                "Rapid beneficiary rotation detected",
+                List.of());
+        when(riskServiceClient.evaluate(any())).thenReturn(Optional.of(evaluation));
+        RiskCaseEntity riskCase = new RiskCaseEntity();
+        riskCase.setCaseId("CASE-VELOCITY");
+        when(riskCaseService.createCase(any(), any())).thenReturn(riskCase);
+
+        var response = transactionService.process(request);
+
+        assertThat(response.riskScore()).isEqualByComparingTo("0.9100");
+        assertThat(response.status()).isEqualTo(TransactionStatus.HOLD);
+        assertThat(response.caseId()).isEqualTo("CASE-VELOCITY");
+    }
+
+    @Test
     void rejectsDuplicateTransactionId() {
         TransactionRequest request = request("TX-DUPLICATE");
         when(transactionRepository.existsByTransactionId("TX-DUPLICATE"))
@@ -124,7 +153,18 @@ class TransactionServiceTest {
                 "DEVICE-001",
                 "10.24.81.19",
                 "UPI",
-                Instant.parse("2026-08-30T12:05:32Z"));
+                Instant.parse("2026-08-30T12:05:32Z"),
+                "IP-DEMO-001",
+                "UPI-DEMO-001",
+                "Chennai",
+                "Tamil Nadu",
+                "IN",
+                "AUTHORIZED",
+                "SUCCESS",
+                "SUCCESS",
+                null,
+                "DIGITAL_SERVICES",
+                java.util.Map.of("ipType", "RESIDENTIAL"));
     }
 
     private void saveReturnsInput() {

@@ -77,6 +77,36 @@ async def test_policy_can_set_action_floor() -> None:
 
 
 @pytest.mark.asyncio
+async def test_policy_and_confirmed_case_jointly_ground_hold() -> None:
+    evidence = [
+        EvidenceReference(
+            kind="policy",
+            reference_id="POLICY-RING-001",
+            title="Corroborated ring policy",
+            excerpt="Review coordinated payment rings",
+            similarity=0.86,
+            metadata={"threshold": 0.6, "minimum_action": "REVIEW", "priority": 900},
+        ),
+        EvidenceReference(
+            kind="case",
+            reference_id="CASE-CONFIRMED-001",
+            title="Resolved confirmed-abuse case",
+            excerpt="Shared device and many-to-one beneficiary ring",
+            similarity=0.89,
+            metadata={"final_label": "CONFIRMED_ABUSE"},
+        ),
+    ]
+
+    result = await RiskVerifier(InMemoryEvidenceRepository(evidence)).verify(
+        request(dimensions=RiskDimensions(transaction=0.66, structural=0.64, ring=0.67))
+    )
+
+    assert result.final_decision == Decision.HOLD
+    assert "SIMILAR_CONFIRMED_ABUSE" in result.reason_codes
+    assert {item.kind for item in result.evidence} == {"policy", "case"}
+
+
+@pytest.mark.asyncio
 async def test_missing_corroboration_requires_review() -> None:
     result = await RiskVerifier(InMemoryEvidenceRepository()).verify(
         request(dimensions=RiskDimensions(transaction=0.2), signals=[])

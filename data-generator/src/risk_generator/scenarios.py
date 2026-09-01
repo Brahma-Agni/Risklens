@@ -2,7 +2,7 @@ import random
 from collections.abc import Callable
 from datetime import datetime, timedelta
 
-from risk_generator.entities import private_ip
+from risk_generator.entities import INDIA_LOCATIONS, private_ip
 from risk_generator.models import Account, GeneratedEvent, GroundTruth, Merchant, Transaction
 
 
@@ -50,6 +50,11 @@ def normal_payment(
     for _ in range(count):
         account = rng.choice(accounts)
         merchant = rng.choice(merchants)
+        legitimate_travel = rng.random() < 0.08
+        city, state = (account.home_city, account.home_state)
+        if legitimate_travel:
+            alternatives = [item for item in INDIA_LOCATIONS if item[0] != account.home_city]
+            city, state = rng.choice(alternatives)
         baseline = (account.typical_amount + merchant.typical_amount) / 2
         amount = max(10.0, min(150000.0, rng.lognormvariate(0, 0.35) * baseline))
         transaction = Transaction(
@@ -62,6 +67,15 @@ def normal_payment(
             ip_address=account.home_ip_address,
             payment_method=account.payment_method,
             timestamp=start + timedelta(seconds=rng.randrange(max(1, duration_seconds))),
+            location_city=city,
+            location_state=state,
+            merchant_category=merchant.category,
+            context={
+                "ipType": "MOBILE" if legitimate_travel else "RESIDENTIAL",
+                "deviceTrust": "TRUSTED",
+                "locationSource": "DEVICE",
+                "legitimateTravel": legitimate_travel,
+            },
         )
         events.append(
             GeneratedEvent(
@@ -90,9 +104,9 @@ def shared_device_ring(
     ids: IdFactory,
     batch_index: int,
 ) -> list[GeneratedEvent]:
-    ring_id = f"RING-DEVICE-{batch_index:04d}"
-    device = f"DEV-RING-{batch_index:04d}"
-    ip_address = private_ip(batch_index, subnet=88)
+    ring_id = f"RING-DEVICE-{ids.seed}-{batch_index:04d}"
+    device = f"DEV-RING-{ids.seed}-{batch_index:04d}"
+    ip_address = private_ip(batch_index, subnet=30 + ids.seed % 200)
     selected_accounts = rng.sample(accounts, k=min(count, len(accounts)))
     selected_merchants = rng.sample(merchants, k=min(3, len(merchants)))
     base, step = burst_timeline(
@@ -117,6 +131,14 @@ def shared_device_ring(
             ip_address,
             rng.choice(("UPI", "CARD")),
             base + timedelta(seconds=index * step),
+            location_city=account.home_city,
+            location_state=account.home_state,
+            merchant_category=merchant.category,
+            context={
+                "ipType": "PROXY",
+                "deviceTrust": "NEW",
+                "locationSource": "IP",
+            },
         )
         events.append(
             GeneratedEvent(
@@ -146,7 +168,7 @@ def velocity_burst(
     ids: IdFactory,
     batch_index: int,
 ) -> list[GeneratedEvent]:
-    ring_id = f"BURST-{batch_index:04d}"
+    ring_id = f"BURST-{ids.seed}-{batch_index:04d}"
     account = rng.choice(accounts)
     base, step = burst_timeline(
         rng=rng,
@@ -169,6 +191,14 @@ def velocity_burst(
             account.home_ip_address,
             account.payment_method,
             base + timedelta(seconds=index * step),
+            location_city=account.home_city,
+            location_state=account.home_state,
+            merchant_category=merchant.category,
+            context={
+                "ipType": "RESIDENTIAL",
+                "deviceTrust": "TRUSTED",
+                "locationSource": "DEVICE",
+            },
         )
         events.append(
             GeneratedEvent(
@@ -202,8 +232,8 @@ def mule_fan_in(
     batch_index: int,
 ) -> list[GeneratedEvent]:
     del merchants
-    ring_id = f"RING-MULE-{batch_index:04d}"
-    receiver = f"MULE-SYN-{batch_index:04d}"
+    ring_id = f"RING-MULE-{ids.seed}-{batch_index:04d}"
+    receiver = f"MULE-SYN-{ids.seed}-{batch_index:04d}"
     selected = rng.sample(accounts, k=min(count, len(accounts)))
     base, step = burst_timeline(
         rng=rng,
@@ -226,6 +256,13 @@ def mule_fan_in(
             account.home_ip_address,
             "UPI",
             base + timedelta(seconds=index * step),
+            location_city=account.home_city,
+            location_state=account.home_state,
+            context={
+                "ipType": "RESIDENTIAL",
+                "deviceTrust": "TRUSTED",
+                "locationSource": "DEVICE",
+            },
         )
         events.append(
             GeneratedEvent(
@@ -256,8 +293,8 @@ def account_takeover(
     batch_index: int,
 ) -> list[GeneratedEvent]:
     account = rng.choice(accounts)
-    device = f"DEV-NOVEL-{batch_index:04d}"
-    ip_address = private_ip(batch_index, subnet=199)
+    device = f"DEV-NOVEL-{ids.seed}-{batch_index:04d}"
+    ip_address = private_ip(batch_index, subnet=40 + ids.seed % 200)
     base, step = burst_timeline(
         rng=rng,
         start=start,
@@ -279,6 +316,16 @@ def account_takeover(
             ip_address,
             "CARD",
             base + timedelta(seconds=index * step),
+            location_city="Singapore",
+            location_state="Singapore",
+            location_country="SG",
+            merchant_category=merchant.category,
+            context={
+                "ipType": "DATACENTER",
+                "deviceTrust": "NEW",
+                "locationSource": "IP",
+                "impossibleTravel": True,
+            },
         )
         events.append(
             GeneratedEvent(
@@ -292,7 +339,7 @@ def account_takeover(
                         "Established account suddenly uses a novel device and IP for "
                         "high-value payments."
                     ),
-                    f"ATO-{batch_index:04d}",
+                    f"ATO-{ids.seed}-{batch_index:04d}",
                     [account.account_id, device, ip_address],
                 ),
             )

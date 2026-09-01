@@ -59,6 +59,31 @@ def test_runtime_payload_never_contains_ground_truth() -> None:
         assert forbidden.isdisjoint(event.transaction.backend_payload())
 
 
+def test_runtime_payload_populates_geography_and_risk_context() -> None:
+    payloads = [event.transaction.backend_payload() for event in build().events]
+
+    assert all(row["locationCity"] and row["locationState"] for row in payloads)
+    assert all(row["locationCountry"] for row in payloads)
+    assert all(row["context"].get("ipType") for row in payloads)
+    assert all(row["context"].get("deviceTrust") for row in payloads)
+
+
+def test_account_takeover_has_geographic_and_identity_anomalies() -> None:
+    dataset = TrafficGenerator(
+        GeneratorConfig(
+            count=8,
+            abuse_rate=1,
+            seed=17,
+            start=START,
+            enabled_scenarios=("account_takeover",),
+        )
+    ).generate()
+
+    assert all(event.transaction.location_country == "SG" for event in dataset.events)
+    assert all(event.transaction.context["impossibleTravel"] for event in dataset.events)
+    assert all(event.transaction.context["deviceTrust"] == "NEW" for event in dataset.events)
+
+
 def test_shared_device_ring_has_coordinated_entities() -> None:
     dataset = TrafficGenerator(
         GeneratorConfig(

@@ -5,7 +5,9 @@ setup:
 	@echo "Local environment is ready. Review .env before non-development use."
 
 stack-up:
-	docker compose up -d --build --wait
+	docker compose up -d --build --wait postgres neo4j qdrant
+	docker compose up --no-deps neo4j-init qdrant-init
+	docker compose up -d --build --wait ai-risk-verifier risk-service backend frontend-dashboard
 
 stack-down:
 	docker compose down

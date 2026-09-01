@@ -53,6 +53,40 @@ public class TransactionEntity {
     @Column(name = "payment_method", nullable = false, length = 32)
     private String paymentMethod;
 
+    @Column(name = "ip_id", length = 128)
+    private String ipId;
+
+    @Column(name = "payment_instrument_id", length = 128)
+    private String paymentInstrumentId;
+
+    @Column(name = "location_city", length = 128)
+    private String locationCity;
+
+    @Column(name = "location_state", length = 128)
+    private String locationState;
+
+    @Column(name = "location_country", length = 2)
+    private String locationCountry;
+
+    @Column(name = "authorization_status", length = 32)
+    private String authorizationStatus;
+
+    @Column(name = "authentication_status", length = 32)
+    private String authenticationStatus;
+
+    @Column(name = "processing_status", length = 32)
+    private String processingStatus;
+
+    @Column(name = "failure_reason", length = 64)
+    private String failureReason;
+
+    @Column(name = "merchant_category", length = 64)
+    private String merchantCategory;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private String context;
+
     @Column(name = "occurred_at", nullable = false)
     private Instant occurredAt;
 

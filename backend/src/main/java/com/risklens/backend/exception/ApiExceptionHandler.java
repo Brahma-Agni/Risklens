@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -25,6 +26,15 @@ public class ApiExceptionHandler {
     ResponseEntity<ProblemDetail> handleConflict(
             ConflictException exception, HttpServletRequest request) {
         return problem(HttpStatus.CONFLICT, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ResponseEntity<ProblemDetail> handleDataConflict(
+            DataIntegrityViolationException exception, HttpServletRequest request) {
+        return problem(
+                HttpStatus.CONFLICT,
+                "The request conflicts with an existing record",
+                request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

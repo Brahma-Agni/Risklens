@@ -33,9 +33,7 @@ def metrics(counts: Counts) -> dict[str, float | int]:
         "precision": precision,
         "recall": recall,
         "f1": _divide(2 * precision * recall, precision + recall),
-        "specificity": _divide(
-            counts.true_negative, counts.true_negative + counts.false_positive
-        ),
+        "specificity": _divide(counts.true_negative, counts.true_negative + counts.false_positive),
         "accuracy": _divide(
             counts.true_positive + counts.true_negative,
             counts.total,

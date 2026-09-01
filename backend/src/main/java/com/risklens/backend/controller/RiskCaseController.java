@@ -41,6 +41,12 @@ public class RiskCaseController {
         return riskCaseService.list(status, severity, limit);
     }
 
+    @GetMapping("/high-risk-linked")
+    public List<RiskCaseSummaryResponse> highRiskLinked(
+            @RequestParam(defaultValue = "100") @Min(1) @Max(500) int limit) {
+        return riskCaseService.listHighRiskLinked(limit);
+    }
+
     @GetMapping("/{caseId}")
     public RiskCaseDetailResponse get(@PathVariable String caseId) {
         return riskCaseService.get(caseId);

@@ -2,6 +2,7 @@ package com.risklens.backend.dto;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 
 public record RiskEvaluationRequest(
         String transactionId,
@@ -12,7 +13,18 @@ public record RiskEvaluationRequest(
         String deviceId,
         String ipAddress,
         String paymentMethod,
-        Instant timestamp
+        Instant timestamp,
+        String ipId,
+        String paymentInstrumentId,
+        String locationCity,
+        String locationState,
+        String locationCountry,
+        String authorizationStatus,
+        String authenticationStatus,
+        String transactionStatus,
+        String failureReason,
+        String merchantCategory,
+        Map<String, Object> context
 ) {
     public static RiskEvaluationRequest from(TransactionRequest request) {
         return new RiskEvaluationRequest(
@@ -24,7 +36,17 @@ public record RiskEvaluationRequest(
                 request.deviceId(),
                 request.ipAddress(),
                 request.paymentMethod(),
-                request.timestamp());
+                request.timestamp(),
+                request.ipId(),
+                request.paymentInstrumentId(),
+                request.locationCity(),
+                request.locationState(),
+                request.locationCountry(),
+                request.authorizationStatus(),
+                request.authenticationStatus(),
+                request.transactionStatus(),
+                request.failureReason(),
+                request.merchantCategory(),
+                request.context());
     }
 }
-

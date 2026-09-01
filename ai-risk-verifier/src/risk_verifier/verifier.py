@@ -13,8 +13,16 @@ DECISION_RANK = {
 
 
 class RiskVerifier:
-    def __init__(self, repository: EvidenceRepository) -> None:
+    def __init__(
+        self,
+        repository: EvidenceRepository,
+        *,
+        confirmed_case_threshold: float = 0.25,
+        false_positive_threshold: float = 0.32,
+    ) -> None:
         self.repository = repository
+        self.confirmed_case_threshold = confirmed_case_threshold
+        self.false_positive_threshold = false_positive_threshold
 
     async def verify(self, request: VerifyRequest) -> VerifyResponse:
         retrieval_unavailable = False
@@ -32,14 +40,14 @@ class RiskVerifier:
             for item in evidence
             if item.kind == "case"
             and item.metadata.get("final_label") == "CONFIRMED_ABUSE"
-            and item.similarity >= 0.72
+            and item.similarity >= self.confirmed_case_threshold
         ]
         false_positive_cases = [
             item
             for item in evidence
             if item.kind == "case"
             and item.metadata.get("final_label") == "FALSE_POSITIVE"
-            and item.similarity >= 0.82
+            and item.similarity >= self.false_positive_threshold
         ]
 
         final = request.proposed_decision

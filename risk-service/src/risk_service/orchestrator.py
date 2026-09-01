@@ -2,6 +2,7 @@ import asyncio
 
 from risk_service.config import Settings
 from risk_service.engines import (
+    ScoringThresholds,
     account_engine,
     behavior_engine,
     clamp,
@@ -33,12 +34,21 @@ class RiskOrchestrator:
         self.graph_store = graph_store
         self.similarity_store = similarity_store
         self.verifier = verifier
+        self.thresholds = ScoringThresholds(
+            amount_deviation_ratio=settings.amount_deviation_ratio,
+            velocity_5m=settings.velocity_5m_threshold,
+            velocity_1h=settings.velocity_1h_threshold,
+            beneficiary_rotation_5m=settings.beneficiary_rotation_5m_threshold,
+            fragment_amount_ceiling=settings.fragment_amount_ceiling,
+            fragment_count_1h=settings.fragment_count_1h_threshold,
+            fragment_total_1h=settings.fragment_total_1h_threshold,
+        )
 
     async def evaluate(self, request: RiskRequest) -> RiskResponse:
         history = await self.history_store.history(request, self.settings.history_limit)
-        transaction = transaction_engine(request, history)
-        behavior = behavior_engine(history)
-        temporal = temporal_engine(request, history)
+        transaction = transaction_engine(request, history, self.thresholds)
+        behavior = behavior_engine(history, request)
+        temporal = temporal_engine(request, history, self.thresholds)
         account = account_engine(history, transaction)
         similarity_context = self._similarity_context(request, transaction, behavior, temporal)
         graph, similarity = await asyncio.gather(
@@ -182,7 +192,10 @@ class RiskOrchestrator:
         )
         return (
             f"payment {request.payment_method} amount {request.amount:.2f} sender "
-            f"{request.sender_id} receiver {request.receiver_id} {types}"
+            f"{request.sender_id} receiver {request.receiver_id} category "
+            f"{request.merchant_category or 'unknown'} authorization "
+            f"{request.authorization_status or 'unknown'} authentication "
+            f"{request.authentication_status or 'unknown'} {types}"
         )
 
     @staticmethod

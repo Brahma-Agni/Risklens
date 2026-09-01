@@ -126,6 +126,18 @@ class PolicyRequest(BaseModel):
     threshold: float = Field(default=0.7, ge=0, le=1)
     priority: int = Field(default=100, ge=0, le=1000)
     tags: list[str] = Field(default_factory=list, max_length=30)
+    source_name: Annotated[
+        str | None, StringConstraints(strip_whitespace=True, max_length=250)
+    ] = None
+    source_url: Annotated[
+        str | None, StringConstraints(strip_whitespace=True, max_length=2000)
+    ] = None
+    source_date: Annotated[
+        str | None, StringConstraints(strip_whitespace=True, max_length=32)
+    ] = None
+    source_section: Annotated[
+        str | None, StringConstraints(strip_whitespace=True, max_length=250)
+    ] = None
 
 
 class StoreResponse(BaseModel):

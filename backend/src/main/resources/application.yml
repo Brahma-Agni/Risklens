@@ -47,11 +47,15 @@ risklens:
     base-url: ${RISK_SERVICE_URL:http://localhost:8000}
     connect-timeout: ${RISK_SERVICE_CONNECT_TIMEOUT:2s}
     read-timeout: ${RISK_SERVICE_READ_TIMEOUT:5s}
-  review-threshold: ${RISK_REVIEW_THRESHOLD:0.70}
+  verifier:
+    base-url: ${VERIFIER_URL:http://localhost:8090}
+    api-key: ${VERIFIER_API_KEY:}
+    connect-timeout: ${VERIFIER_CONNECT_TIMEOUT:2s}
+    read-timeout: ${VERIFIER_READ_TIMEOUT:5s}
+  review-threshold: ${RISK_REVIEW_THRESHOLD:0.75}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
 
 logging:
   pattern:
     level: "%5p [transactionId=%X{transactionId:-},caseId=%X{caseId:-}]"
-

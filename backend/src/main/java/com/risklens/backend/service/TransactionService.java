@@ -118,10 +118,22 @@ public class TransactionService {
         transaction.setDeviceId(request.deviceId());
         transaction.setIpAddress(request.ipAddress());
         transaction.setPaymentMethod(request.paymentMethod().toUpperCase(Locale.ROOT));
+        transaction.setIpId(request.ipId());
+        transaction.setPaymentInstrumentId(request.paymentInstrumentId());
+        transaction.setLocationCity(request.locationCity());
+        transaction.setLocationState(request.locationState());
+        transaction.setLocationCountry(upper(request.locationCountry()));
+        transaction.setAuthorizationStatus(upper(request.authorizationStatus()));
+        transaction.setAuthenticationStatus(upper(request.authenticationStatus()));
+        transaction.setProcessingStatus(upper(request.transactionStatus()));
+        transaction.setFailureReason(upper(request.failureReason()));
+        transaction.setMerchantCategory(upper(request.merchantCategory()));
         transaction.setOccurredAt(request.timestamp());
         transaction.setReceivedAt(Instant.now());
         transaction.setStatus(TransactionStatus.PENDING);
         try {
+            transaction.setContext(objectMapper.writeValueAsString(
+                    request.context() == null ? java.util.Map.of() : request.context()));
             transaction.setRawPayload(objectMapper.writeValueAsString(request));
         } catch (JsonProcessingException exception) {
             throw new IllegalArgumentException("Transaction payload could not be serialized", exception);
@@ -142,6 +154,17 @@ public class TransactionService {
                 transaction.getDeviceId(),
                 transaction.getIpAddress(),
                 transaction.getPaymentMethod(),
+                transaction.getIpId(),
+                transaction.getPaymentInstrumentId(),
+                transaction.getLocationCity(),
+                transaction.getLocationState(),
+                transaction.getLocationCountry(),
+                transaction.getAuthorizationStatus(),
+                transaction.getAuthenticationStatus(),
+                transaction.getProcessingStatus(),
+                transaction.getFailureReason(),
+                transaction.getMerchantCategory(),
+                readContext(transaction.getContext()),
                 transaction.getOccurredAt(),
                 transaction.getReceivedAt(),
                 transaction.getStatus(),
@@ -149,10 +172,30 @@ public class TransactionService {
                 caseId);
     }
 
+    @SuppressWarnings("unchecked")
+    private java.util.Map<String, Object> readContext(String context) {
+        if (context == null || context.isBlank()) {
+            return java.util.Map.of();
+        }
+        try {
+            return objectMapper.readValue(context, java.util.Map.class);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Stored transaction context is invalid", exception);
+        }
+    }
+
+    private String upper(String value) {
+        return value == null ? null : value.toUpperCase(Locale.ROOT);
+    }
+
     private BigDecimal overallRisk(RiskEvaluationResponse risk) {
         return java.util.stream.Stream.of(
                         risk.transactionRisk(),
                         risk.accountRisk(),
+                        risk.behaviorRisk(),
+                        risk.temporalRisk(),
+                        risk.structuralRisk(),
+                        risk.similarityRisk(),
                         risk.ringRisk())
                 .filter(value -> value != null)
                 .max(BigDecimal::compareTo)
@@ -187,4 +230,3 @@ public class TransactionService {
                 || riskScore.compareTo(reviewThreshold) >= 0;
     }
 }
-
