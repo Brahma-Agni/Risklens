@@ -142,6 +142,22 @@ make stack-up
 make stack-check
 ```
 
+### Run the full demo in one command
+
+This starts every service, creates a fresh synthetic dataset, streams it through
+the Pydantic backend and risk pipeline, and writes an evaluation report.
+
+```bash
+chmod +x scripts/run-demo.sh
+./scripts/run-demo.sh
+```
+
+Pass a deterministic seed if you want to reproduce a run:
+
+```bash
+./scripts/run-demo.sh 20260918
+```
+
 The committed defaults bind all services to `127.0.0.1`. On a fresh clone, open:
 
 | Service | URL |
