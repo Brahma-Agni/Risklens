@@ -320,6 +320,19 @@ services:
       NEXT_PUBLIC_HIGH_RISK_THRESHOLD: ${NEXT_PUBLIC_HIGH_RISK_THRESHOLD:-0.75}
       NEXT_PUBLIC_REFRESH_INTERVAL_MS: ${NEXT_PUBLIC_REFRESH_INTERVAL_MS:-10000}
       NEXT_PUBLIC_API_TIMEOUT_MS: ${NEXT_PUBLIC_API_TIMEOUT_MS:-5000}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://localhost:3000')
+          .then(response => { if (!response.ok) process.exit(1) })
+          .catch(() => process.exit(1))
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
     networks:
       - risklens
 
