@@ -34,6 +34,7 @@ export function Overview() {
   const [cases, setCases] = useState<RiskCaseDetail[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [connected, setConnected] = useState(false);
+  const [evidence, setEvidence] = useState<RiskCaseDetail | null>(null);
   const [selected, setSelected] = useState<RiskCaseDetail | null>(null);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -182,11 +183,7 @@ export function Overview() {
                         </div>
                         <Button
                           className="mt-2"
-                          onClick={() => {
-                            setSelected(item);
-                            setComment('');
-                            setDecisionError('');
-                          }}
+                          onClick={() => setEvidence(item)}
                           size="sm"
                           variant="outline"
                         >
@@ -226,6 +223,40 @@ export function Overview() {
           ) : null}
         </CardContent>
       </Card>
+      <Dialog
+        open={evidence !== null}
+        onOpenChange={(open) => {
+          if (!open) setEvidence(null);
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-2 border-black bg-[#fffdf5] shadow-[8px_8px_0_#000] sm:max-w-2xl">
+          {evidence ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Evidence details</DialogTitle>
+                <DialogDescription>
+                  {evidence.caseId} · {evidence.transactionId}
+                </DialogDescription>
+              </DialogHeader>
+              <p className="text-sm font-medium leading-6">
+                {evidence.aiSummary}
+              </p>
+              <div className="space-y-3 border-t-2 border-black pt-4">
+                {evidence.signals.map((signal) => (
+                  <div key={`${signal.source}-${signal.type}`}>
+                    <p className="text-xs font-black uppercase">
+                      {signal.source} · {signal.type.replaceAll('_', ' ')}
+                    </p>
+                    <p className="mt-1 text-sm leading-6">
+                      {signal.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={selected !== null}
         onOpenChange={(open) => {
