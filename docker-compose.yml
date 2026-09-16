@@ -279,24 +279,23 @@ services:
       risk-service:
         condition: service_healthy
     environment:
-      DATABASE_URL: ${DATABASE_URL:-jdbc:postgresql://postgres:5432/risklens}
-      DATABASE_USER: ${DATABASE_USER:-risklens}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-risklens_dev_password}
+      BACKEND_DATABASE_URL: ${BACKEND_DATABASE_URL:-postgresql://risklens:risklens_dev_password@postgres:5432/risklens}
       RISK_SERVICE_URL: ${RISK_SERVICE_URL:-http://risk-service:8000}
-      RISK_REVIEW_THRESHOLD: ${BACKEND_REVIEW_THRESHOLD:-0.75}
-      RISK_SERVICE_CONNECT_TIMEOUT: ${RISK_SERVICE_CONNECT_TIMEOUT:-2s}
-      RISK_SERVICE_READ_TIMEOUT: ${RISK_SERVICE_READ_TIMEOUT:-5s}
+      BACKEND_REVIEW_THRESHOLD: ${BACKEND_REVIEW_THRESHOLD:-0.75}
+      BACKEND_REQUEST_TIMEOUT_SECONDS: ${BACKEND_REQUEST_TIMEOUT_SECONDS:-5}
       VERIFIER_URL: ${VERIFIER_URL:-http://ai-risk-verifier:8090}
       VERIFIER_API_KEY: ${VERIFIER_API_KEY:-}
-      VERIFIER_CONNECT_TIMEOUT: ${VERIFIER_CONNECT_TIMEOUT:-2s}
-      VERIFIER_READ_TIMEOUT: ${VERIFIER_READ_TIMEOUT:-5s}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-8080}:8080"
     healthcheck:
       test:
-        - CMD-SHELL
-        - wget --quiet --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://localhost:8080/health/live', timeout=2)
       interval: 5s
       timeout: 5s
       retries: 20

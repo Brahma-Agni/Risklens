@@ -46,6 +46,17 @@ CREATE TABLE transactions (
     device_id VARCHAR(128),
     ip_address INET,
     payment_method VARCHAR(32) NOT NULL,
+    ip_id VARCHAR(128),
+    payment_instrument_id VARCHAR(128),
+    location_city VARCHAR(128),
+    location_state VARCHAR(128),
+    location_country VARCHAR(2),
+    authorization_status VARCHAR(32),
+    authentication_status VARCHAR(32),
+    processing_status VARCHAR(32),
+    failure_reason VARCHAR(64),
+    merchant_category VARCHAR(64),
+    context JSONB NOT NULL DEFAULT '{}'::JSONB,
     occurred_at TIMESTAMPTZ NOT NULL,
     received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     status transaction_status NOT NULL DEFAULT 'PENDING',
@@ -110,10 +121,18 @@ CREATE INDEX idx_transactions_sender_time ON transactions (sender_account_id, oc
 CREATE INDEX idx_transactions_receiver_time ON transactions (receiver_id, occurred_at DESC);
 CREATE INDEX idx_transactions_device_time ON transactions (device_id, occurred_at DESC);
 CREATE INDEX idx_transactions_status_time ON transactions (status, occurred_at DESC);
+CREATE INDEX idx_transactions_ip_id_time ON transactions (ip_id, occurred_at DESC)
+    WHERE ip_id IS NOT NULL;
+CREATE INDEX idx_transactions_instrument_time ON transactions (payment_instrument_id, occurred_at DESC)
+    WHERE payment_instrument_id IS NOT NULL;
+CREATE INDEX idx_transactions_merchant_category_time ON transactions (merchant_category, occurred_at DESC)
+    WHERE merchant_category IS NOT NULL;
 CREATE INDEX idx_risk_cases_status_created ON risk_cases (status, created_at DESC);
 CREATE INDEX idx_risk_cases_account_created ON risk_cases (account_id, created_at DESC);
 CREATE INDEX idx_risk_signals_case ON risk_signals (risk_case_id);
 CREATE INDEX idx_analyst_decisions_case ON analyst_decisions (risk_case_id, created_at DESC);
+CREATE UNIQUE INDEX uq_analyst_decisions_risk_case ON analyst_decisions (risk_case_id);
 CREATE INDEX idx_transactions_raw_payload_gin ON transactions USING GIN (raw_payload);
+CREATE INDEX idx_transactions_context_gin ON transactions USING GIN (context);
 
 COMMIT;

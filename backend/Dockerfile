@@ -1,16 +1,15 @@
-FROM maven:3.9-eclipse-temurin-17-alpine AS build
-WORKDIR /workspace
-
-COPY pom.xml ./
+FROM python:3.12-slim AS builder
+WORKDIR /build
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1
+COPY pyproject.toml README.md ./
 COPY src ./src
-RUN mvn --batch-mode clean package -DskipTests
+RUN python -m pip wheel --wheel-dir /wheels .
 
-FROM eclipse-temurin:17-jre-alpine
-RUN addgroup -S risklens && adduser -S risklens -G risklens
+FROM python:3.12-slim
+RUN useradd --create-home --uid 10001 backend
 WORKDIR /app
-
-COPY --from=build /workspace/target/backend-*.jar app.jar
-
-USER risklens
+COPY --from=builder /wheels /wheels
+RUN python -m pip install --no-cache-dir /wheels/* && rm -rf /wheels
+USER backend
 EXPOSE 8080
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]
+CMD ["python", "-m", "risklens_backend.main"]

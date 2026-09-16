@@ -14,7 +14,7 @@ stack-down:
 
 stack-check:
 	@backend_port=$$(docker compose port backend 8080 | sed 's/.*://'); \
-		curl --fail --silent "http://localhost:$${backend_port}/actuator/health" >/dev/null
+		curl --fail --silent "http://localhost:$${backend_port}/health/ready" >/dev/null
 	@risk_port=$$(docker compose port risk-service 8000 | sed 's/.*://'); \
 		curl --fail --silent "http://localhost:$${risk_port}/health/ready" >/dev/null
 	@verifier_port=$$(docker compose port ai-risk-verifier 8090 | sed 's/.*://'); \
@@ -50,7 +50,7 @@ infra-reset:
 	docker compose down --volumes
 
 backend-test:
-	cd backend && mvn test
+	cd backend && python3 -m pytest
 
 backend-up:
 	docker compose up -d --build --wait backend
@@ -62,7 +62,7 @@ backend-down:
 	docker compose stop backend
 
 verifier-test:
-	cd ai-risk-verifier && python -m pytest
+	cd ai-risk-verifier && python3 -m pytest
 
 verifier-up:
 	docker compose up -d --build --wait ai-risk-verifier
@@ -74,7 +74,7 @@ verifier-down:
 	docker compose stop ai-risk-verifier
 
 data-test:
-	cd data-generator && python -m pytest
+	cd data-generator && python3 -m pytest
 
 data-generate:
 	docker compose run --rm data-generator generate --count 1000 --abuse-rate 0.15 --output /app/output
@@ -83,13 +83,13 @@ data-stream:
 	docker compose run --rm data-generator stream --input /app/output/transactions.jsonl
 
 evaluation-test:
-	cd evaluation && python -m pytest
+	cd evaluation && python3 -m pytest
 
 evaluate:
 	docker compose run --rm evaluation
 
 risk-test:
-	cd risk-service && python -m pytest
+	cd risk-service && python3 -m pytest
 
 risk-up:
 	docker compose up -d --build --wait risk-service

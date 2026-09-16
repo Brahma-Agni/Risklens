@@ -32,7 +32,7 @@ verified high-risk linked cases to an analyst.
 ## What RiskLens does
 
 - Generates realistic normal and defense-only synthetic payment scenarios.
-- Validates and persists every transaction through a Spring Boot gateway.
+- Validates every payment with Pydantic and persists it through a small FastAPI gateway.
 - Scores transaction, account, behavior, velocity, fragmentation, takeover, and
   relationship risk in Python.
 - Builds an entity graph in Neo4j to reveal coordinated activity.
@@ -48,7 +48,7 @@ verified high-risk linked cases to an analyst.
 flowchart LR
     DG["Synthetic Data Generator<br/>Python"]
     LABELS[("Private Ground Truth<br/>evaluation only")]
-    API["Spring Boot API<br/>validation and case management"]
+    API["Pydantic API<br/>validation and case management"]
     PG[("PostgreSQL<br/>transactions, scores, cases, decisions")]
     RISK["Python Risk Service<br/>behavior, time, fragmentation, takeover"]
     NEO[("Neo4j<br/>entity relationships")]
@@ -88,7 +88,7 @@ policies and historical context so the result is explainable.
 
 | Layer | Technology | Responsibility |
 |---|---|---|
-| Payment boundary | Java 17, Spring Boot | Validation, persistence, risk orchestration, case APIs |
+| Payment boundary | Python, FastAPI, Pydantic | Validation, persistence, risk orchestration, case APIs |
 | Risk intelligence | Python, FastAPI | Behavioral, temporal, account, transaction, and graph scoring |
 | Evidence verifier | Python, FastAPI, RAG | Policy retrieval, similar-case retrieval, decision guardrails |
 | Transaction store | PostgreSQL 16 | Transactions, scores, cases, signals, analyst decisions |
@@ -130,12 +130,13 @@ The detailed evidence is available in
 - Docker Compose v2
 - GNU Make
 - `curl`
+- Python 3.10+ for running service tests outside Docker
 
 ### Start the complete application
 
 ```bash
-git clone https://github.com/Brahma-Agni/razorpay-ai.git
-cd razorpay-ai
+git clone https://github.com/Brahma-Agni/Risklens.git
+cd Risklens
 make setup
 make stack-up
 make stack-check
@@ -147,7 +148,8 @@ The committed defaults bind all services to `127.0.0.1`. On a fresh clone, open:
 |---|---|
 | Staff dashboard | <http://localhost:3000> |
 | Actions Taken | <http://localhost:3000/actions> |
-| Spring Boot health | <http://localhost:8080/actuator/health> |
+| Backend API docs | <http://localhost:8080/docs> |
+| Backend health | <http://localhost:8080/health/ready> |
 | Risk-service API docs | <http://localhost:8000/docs> |
 | Verifier API docs | <http://localhost:8090/docs> |
 | Neo4j Browser | <http://localhost:7474> |
@@ -206,9 +208,9 @@ make stack-up          # build and start the complete stack
 make stack-check       # verify application health
 make stack-down        # stop services and preserve database volumes
 make data-generate     # create transactions and private evaluation labels
-make data-stream       # submit generated transactions to Spring Boot
+make data-stream       # submit generated transactions to the Pydantic API
 make evaluate          # calculate held-out metrics
-make backend-test      # run Spring Boot tests
+make backend-test      # run backend Pydantic/API tests
 make risk-test         # run risk-service tests
 make verifier-test     # run verifier tests
 make data-test         # run generator tests
@@ -220,7 +222,7 @@ intentionally want a clean dataset.
 
 ## API flow
 
-The browser and generator communicate only with Spring Boot. They never connect
+The browser and generator communicate only with the FastAPI backend. They never connect
 directly to the databases or Python services.
 
 ```text
@@ -243,15 +245,15 @@ GET  /api/v1/analyst-actions
     → return resolved cases for Actions Taken
 ```
 
-Interactive contracts are available at the risk service and verifier `/docs`
-URLs after startup. The Spring Boot endpoint details are documented in
+Interactive contracts are available at each FastAPI service's `/docs` URL after
+startup. The backend endpoint details are documented in
 [`backend/README.md`](backend/README.md).
 
 ## Repository structure
 
 ```text
-razorpay-ai/
-├── backend/                 # Spring Boot gateway and case management
+Risklens/
+├── backend/                 # Pydantic validation API and case management
 ├── data-generator/          # Synthetic ecosystem and labeled scenarios
 ├── risk-service/            # Behavioral, temporal, graph, and similarity scoring
 ├── ai-risk-verifier/        # RAG retrieval and evidence guardrails
@@ -268,7 +270,7 @@ razorpay-ai/
 ```
 
 The `shared/` directory is not a deployed service. It defines the JSON contracts
-that keep Java, Python, and TypeScript payloads aligned.
+that keep the Python services and TypeScript dashboard aligned.
 
 ## Research foundation
 
