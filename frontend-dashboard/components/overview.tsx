@@ -10,7 +10,7 @@ import {
 } from '@/lib/api';
 import type { RiskCaseDetail, Transaction } from '@/lib/types';
 import { DashboardShell, PageHeading } from '@/components/dashboard-shell';
-import { DataMode, RiskBadge, StatusBadge } from '@/components/risk-ui';
+import { DataMode, RiskBadge } from '@/components/risk-ui';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -138,8 +138,6 @@ export function Overview() {
                   <TableHead>Customer → receiver</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Evidence sources</TableHead>
-                  <TableHead>Fraud risk</TableHead>
-                  <TableHead>Current action</TableHead>
                   <TableHead>Review</TableHead>
                 </TableRow>
               </TableHeader>
@@ -149,7 +147,6 @@ export function Overview() {
                   const sources = [
                     ...new Set(item.signals.map((signal) => signal.source)),
                   ];
-                  const risk = Number(item.ringRisk);
                   return (
                     <TableRow key={item.caseId} className="bg-[#fff7cc]">
                       <TableCell>
@@ -183,15 +180,18 @@ export function Overview() {
                             </span>
                           ))}
                         </div>
-                        <p className="mt-2 max-w-sm text-xs font-medium">
-                          {item.aiSummary}
-                        </p>
-                      </TableCell>
-                      <TableCell>
-                        <RiskBadge value={risk} />
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={item.status} />
+                        <Button
+                          className="mt-2"
+                          onClick={() => {
+                            setSelected(item);
+                            setComment('');
+                            setDecisionError('');
+                          }}
+                          size="sm"
+                          variant="outline"
+                        >
+                          View evidence
+                        </Button>
                       </TableCell>
                       <TableCell>
                         <Button
